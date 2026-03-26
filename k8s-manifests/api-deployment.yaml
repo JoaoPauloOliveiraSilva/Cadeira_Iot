@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iot-backend-api
+  namespace: default
+spec:
+  replicas: 1 # Quantas cópias da tua API queres a correr em simultâneo (1 chega para já!)
+  selector:
+    matchLabels:
+      app: iot-backend-api
+  template:
+    metadata:
+      labels:
+        app: iot-backend-api
+    spec:
+      containers:
+      - name: api
+        image: iot-backend-api:v2
+        imagePullPolicy: Never # ⚠️ MUITO IMPORTANTE: Diz ao K3s para usar a imagem que importaste à mão, e não ir à internet procurar!
+        ports:
+        - containerPort: 8000
+        # A MAGIA ACONTECE AQUI: Injetar todas as variáveis do Secret como variáveis de ambiente!
+        envFrom:
+        - secretRef:
+            name: backend-secrets 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iot-backend-api-svc
+  namespace: default
+spec:
+  type: LoadBalancer # Exclui a necessidade de portas complexas, expõe diretamente no IP da máquina
+  selector:
+    app: iot-backend-api
+  ports:
+  - protocol: TCP
+    port: 8000       # A porta por onde vamos chamar a API no browser
+    targetPort: 8000 # A porta onde o Uvicorn está à escuta dentro do contentor
