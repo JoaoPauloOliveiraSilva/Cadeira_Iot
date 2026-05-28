@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pydantic-settings
+python-multipart
+influxdb-client
+minio
+fastapi-mqtt
+python-dotenv

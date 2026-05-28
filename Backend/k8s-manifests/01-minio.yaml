@@ -1,0 +1,87 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc-vigilance
+  namespace: iot-surveillance
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio-vigilance
+  namespace: iot-surveillance
+spec:
+  serviceName: minio-service-vigilance
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio-vigilance
+  template:
+    metadata:
+      labels:
+        app: minio-vigilance
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2023-08-09T23-30-22Z
+          imagePullPolicy: IfNotPresent
+          command: ["minio"]
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: iot-surveillance-secrets
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: iot-surveillance-secrets
+                  key: MINIO_ROOT_PASSWORD
+          ports:
+            - containerPort: 9000
+              name: api
+            - containerPort: 9001
+              name: console
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: minio-pvc-vigilance
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service-vigilance
+  namespace: iot-surveillance
+spec:
+  type: ClusterIP
+  selector:
+    app: minio-vigilance
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001

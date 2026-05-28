@@ -1,0 +1,29 @@
+---
+- name: Fazer deploy do sistema IoT Surveillance
+  hosts: cloud_server
+  become: yes
+  tasks:
+    - name: Criar diretorio temporario para os manifestos no servidor
+      file:
+        path: /tmp/k8s-manifests
+        state: directory
+        mode: "0755"
+
+    - name: Copiar os manifestos locais para o servidor Cloud
+      copy:
+        src: ../k8s-manifests/
+        dest: /tmp/k8s-manifests/
+        mode: "0644"
+
+    - name: Aplicar manifestos Kubernetes por ordem
+      command: kubectl apply -f /tmp/k8s-manifests
+      register: kubectl_apply
+      changed_when: "'configured' in kubectl_apply.stdout or 'created' in kubectl_apply.stdout"
+
+    - name: Verificar Pods
+      command: kubectl get pods -n iot-surveillance
+      register: pod_status
+
+    - name: Mostrar estado dos Pods
+      debug:
+        var: pod_status.stdout_lines
